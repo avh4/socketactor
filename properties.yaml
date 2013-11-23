@@ -1,6 +1,6 @@
 ---
-package : com.example
-project : my-project
+package : net.avh4.util.socket
+project : socketactor
 description : ~
-project_url : ~
-github_user : ~
+project_url : http://github.com/avh4/socketactor
+github_user : avh4
