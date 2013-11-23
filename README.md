@@ -1,3 +1,9 @@
-To use the archetype, 
+[![Build Status](https://secure.travis-ci.org/avh4/socketactor.png?branch=master)](http://travis-ci.org/avh4/socketactor)
 
-    bash <(curl http://archetypes.github.io/bootstrap.sh) archetypes/java
+## socketactor
+
+
+
+## Build commands
+
+* [Mutation coverage](http://pitest.org/): `mvn clean test org.pitest:pitest-maven:mutationCoverage`

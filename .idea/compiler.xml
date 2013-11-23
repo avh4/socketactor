@@ -22,11 +22,11 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="true" />
-        <module name="{{ project }}" />
+        <module name="socketactor" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="{{ project }}" target="1.7" />
+      <module name="socketactor" target="1.7" />
     </bytecodeTargetLevel>
   </component>
 </project>
