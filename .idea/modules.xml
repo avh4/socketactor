@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/socketactor.iml" filepath="$PROJECT_DIR$/socketactor.iml" />
+      <module fileurl="file://$PROJECT_DIR$/socketactor-jumi/socketactor-jumi.iml" filepath="$PROJECT_DIR$/socketactor-jumi/socketactor-jumi.iml" />
+      <module fileurl="file://$PROJECT_DIR$/socketactor-parent.iml" filepath="$PROJECT_DIR$/socketactor-parent.iml" />
     </modules>
   </component>
 </project>

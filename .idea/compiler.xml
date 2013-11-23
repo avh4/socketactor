@@ -23,10 +23,13 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="true" />
         <module name="socketactor" />
+        <module name="socketactor-jumi" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="socketactor" target="1.7" />
+      <module name="socketactor-jumi" target="1.7" />
+      <module name="socketactor-parent" target="1.7" />
     </bytecodeTargetLevel>
   </component>
 </project>
