@@ -1,15 +1,17 @@
 package net.avh4.util.socket.jumi;
 
+import fi.jumi.actors.ActorRef;
 import net.avh4.util.socket.SelectorLoop;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-abstract class SocketChannelReader implements SelectorLoop.Delegate {
+abstract class SocketChannelReader<L extends Disconnectable> implements SelectorLoop.Delegate {
     private final SocketChannel channel;
     private final SocketChannelActor socketChannelActor;
     protected final ByteBuffer buffer;
+    protected ActorRef<L> receiver;
     protected int requestCount = 0;
 
     SocketChannelReader(SocketChannelActor socketChannelActor, int readBufferSize, SocketChannel channel) {
@@ -24,25 +26,31 @@ abstract class SocketChannelReader implements SelectorLoop.Delegate {
             try {
                 bytesRead = channel.read(buffer);
             } catch (IOException e) {
-                socketChannelActor.disconnect(e);
+                socketChannelActor.disconnect(receiver, e);
                 return;
             }
         }
 
         if (bytesRead == -1) {
-            socketChannelActor.disconnect("Socket was disconnected");
+            socketChannelActor.disconnect(receiver, "Socket was disconnected");
         }
 
         fulfillRequests();
     }
 
     @Override public void closed() {
-        socketChannelActor.disconnect("Selector was closed");
+        socketChannelActor.disconnect(receiver, "Selector was closed");
     }
 
     public synchronized void next() {
+        if (receiver == null) throw new RuntimeException("No receiver");
         requestCount++;
+        if (requestCount > 1) throw new RuntimeException("Not implemented yet--need to be careful when switching receivers");
         fulfillRequests();
+    }
+
+    public synchronized void setReceiver(ActorRef<L> newReceiver) {
+        this.receiver = newReceiver;
     }
 
     private synchronized void fulfillRequests() {

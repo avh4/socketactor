@@ -8,20 +8,18 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
 
-public class LinesSocketChannelReader extends SocketChannelReader {
+public class LinesSocketChannelReader extends SocketChannelReader<LineListener> {
     private final Charset charset;
     private final Queue<String> readyLines = new ArrayDeque<>();
-    private final ActorRef<LineListener> listener;
     private String stringBuffer = "";
 
-    LinesSocketChannelReader(SocketChannelActor socketChannelActor, ActorRef<LineListener> listener, int readBufferSize, SocketChannel channel) {
-        this(socketChannelActor, listener, readBufferSize, channel, Charset.forName("UTF-8"));
+    LinesSocketChannelReader(SocketChannelActor socketChannelActor, int readBufferSize, SocketChannel channel) {
+        this(socketChannelActor, readBufferSize, channel, Charset.forName("UTF-8"));
     }
 
-    LinesSocketChannelReader(SocketChannelActor socketChannelActor, ActorRef<LineListener> listener, int readBufferSize, SocketChannel channel, Charset charset) {
+    LinesSocketChannelReader(SocketChannelActor socketChannelActor, int readBufferSize, SocketChannel channel, Charset charset) {
         super(socketChannelActor, readBufferSize, channel);
         this.charset = charset;
-        this.listener = listener;
     }
 
     protected void sendData() {
@@ -51,7 +49,7 @@ public class LinesSocketChannelReader extends SocketChannelReader {
     @Override protected void drainImplementationBuffer() {
         while (requestCount > 0 && !readyLines.isEmpty()) {
             requestCount--;
-            listener.tell().receivedLine(readyLines.remove());
+            receiver.tell().receivedLine(readyLines.remove());
         }
     }
 }

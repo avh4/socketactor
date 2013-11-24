@@ -11,51 +11,49 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
-public class SocketChannelActor implements Socket {
+public class SocketChannelActor<L extends Disconnectable> implements Socket<L> {
     public static final int READ_BUFFER_SIZE = 1024 * 8;
     public static final int WRITE_BUFFER_SIZE = 256;
 
     private final String host;
     private final int port;
-    private final ReaderFactory readerFactory;
+    private final ReaderFactory<L> readerFactory;
     private final ByteBuffer writeBuffer;
-    private final ActorRef<? extends Disconnectable> listener;
 
     private SocketChannel channel;
     private Selector selector;
-    private SocketChannelReader reader;
+    private SocketChannelReader<L> reader;
     private Thread readerThread;
 
-    private interface ReaderFactory {
-        SocketChannelReader get(SocketChannelActor self, SocketChannel channel);
+    private interface ReaderFactory<L extends Disconnectable> {
+        SocketChannelReader<L> get(SocketChannelActor self, SocketChannel channel);
     }
 
-    public static SocketChannelActor bytesSocketChannelActor(String host, int port, final ActorRef<BytesListener> listener) {
-        return new SocketChannelActor(host, port, WRITE_BUFFER_SIZE, new ReaderFactory() {
-            @Override public SocketChannelReader get(SocketChannelActor self, SocketChannel channel) {
-                return new BytesSocketChannelReader(self, listener, READ_BUFFER_SIZE, channel);
+    public static SocketChannelActor<BytesListener> bytesSocketChannelActor(String host, int port) {
+        return new SocketChannelActor<>(host, port, WRITE_BUFFER_SIZE, new ReaderFactory<BytesListener>() {
+            @Override public SocketChannelReader<BytesListener> get(SocketChannelActor self, SocketChannel channel) {
+                return new BytesSocketChannelReader(self, READ_BUFFER_SIZE, channel);
             }
-        }, listener);
+        });
     }
 
-    public static SocketChannelActor linesSocketChannelActor(String host, int port, final ActorRef<LineListener> listener) {
+    public static SocketChannelActor<LineListener> linesSocketChannelActor(String host, int port) {
         final int readBufferSize = READ_BUFFER_SIZE;
-        return new SocketChannelActor(host, port, WRITE_BUFFER_SIZE, new ReaderFactory() {
-            @Override public SocketChannelReader get(SocketChannelActor self, SocketChannel channel) {
-                return new LinesSocketChannelReader(self, listener, readBufferSize, channel);
+        return new SocketChannelActor<>(host, port, WRITE_BUFFER_SIZE, new ReaderFactory<LineListener>() {
+            @Override public SocketChannelReader<LineListener> get(SocketChannelActor self, SocketChannel channel) {
+                return new LinesSocketChannelReader(self, readBufferSize, channel);
             }
-        }, listener);
+        });
     }
 
-    protected SocketChannelActor(String host, int port, int writeBufferSize, ReaderFactory readerFactory, ActorRef<? extends Disconnectable> listener) {
+    protected SocketChannelActor(String host, int port, int writeBufferSize, ReaderFactory<L> readerFactory) {
         this.host = host;
         this.port = port;
         this.readerFactory = readerFactory;
-        this.listener = listener;
         this.writeBuffer = ByteBuffer.allocateDirect(writeBufferSize);
     }
 
-    @Override public synchronized void connect() {
+    @Override public synchronized void connect(ActorRef<L> initialReceiver) {
         SocketAddress address = new InetSocketAddress(host, port);
         try {
             selector = Selector.open();
@@ -67,15 +65,15 @@ public class SocketChannelActor implements Socket {
             reader = readerFactory.get(this, channel);
             readerThread = SelectorLoop.newThread(selector, reader);
             readerThread.start();
-            next();
+            next(initialReceiver);
         } catch (IOException e) {
-            disconnect(e);
+            disconnect(initialReceiver, e);
         }
     }
 
-    @Override public synchronized void write(byte[] data) {
+    @Override public synchronized void write(ActorRef<? extends Disconnectable> receiver, byte[] data) {
         if (channel == null) {
-            disconnect("Not connected");
+            disconnect(receiver, "Not connected");
             return;
         }
         writeBuffer.put(data);
@@ -85,12 +83,12 @@ public class SocketChannelActor implements Socket {
             writeBuffer.compact();
             if (bytesWritten < data.length) {
                 // This can be handled better by retrying the remainder of the buffer until a -1
-                disconnect("Failed to write all bytes to the socket (" + bytesWritten + " of " + data.length + ")");
+                disconnect(receiver, "Failed to write all bytes to the socket (" + bytesWritten + " of " + data.length + ")");
                 //noinspection UnnecessaryReturnStatement
                 return;
             }
         } catch (IOException e) {
-            disconnect(e);
+            disconnect(receiver, e);
         }
     }
 
@@ -98,12 +96,17 @@ public class SocketChannelActor implements Socket {
         reader.next();
     }
 
-    protected synchronized void disconnect(String cause) {
-        disconnect(new IOException(cause));
+    @Override public void next(ActorRef<L> newReceiver) {
+        reader.setReceiver(newReceiver);
+        reader.next();
     }
 
-    protected synchronized void disconnect(Throwable cause) {
-        listener.tell().disconnected(cause);
+    protected synchronized void disconnect(ActorRef<? extends Disconnectable> receiver, String cause) {
+        disconnect(receiver, new IOException(cause));
+    }
+
+    protected synchronized void disconnect(ActorRef<? extends Disconnectable> receiver, Throwable cause) {
+        receiver.tell().disconnected(cause);
         stopReaderThread();
         dropChannel();
         closeSelector();

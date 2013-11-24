@@ -18,17 +18,20 @@ import static org.mockito.Mockito.*;
 
 public class LinesSocketChannelReaderTest {
 
-    private SocketChannelReader subject;
+    private SocketChannelReader<LineListener> subject;
     @Mock private SocketChannelActor master;
     @Mock private LineListener listener;
     @Mock private SocketChannel channel;
     @Mock private IOException exception;
+    private ActorRef<LineListener> listenerRef;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        listenerRef = ActorRef.wrap(listener);
         stubChannelRead("ABC\n");
-        subject = new LinesSocketChannelReader(master, ActorRef.wrap(listener), 256, channel);
+        subject = new LinesSocketChannelReader(master, 256, channel);
+        subject.setReceiver(listenerRef);
     }
 
     @Test
@@ -109,7 +112,7 @@ public class LinesSocketChannelReaderTest {
         stub(channel.read(any(ByteBuffer.class))).toReturn(-1);
         subject.selected();
 
-        verify(master).disconnect(anyString());
+        verify(master).disconnect(same(listenerRef), anyString());
     }
 
     @Test
@@ -118,13 +121,13 @@ public class LinesSocketChannelReaderTest {
         stub(channel.read(any(ByteBuffer.class))).toThrow(exception);
         subject.selected();
 
-        verify(master).disconnect(exception);
+        verify(master).disconnect(listenerRef, exception);
     }
 
     @Test
     public void closed_disconnects() throws Exception {
         subject.closed();
-        verify(master).disconnect(anyString());
+        verify(master).disconnect(same(listenerRef), anyString());
     }
 
     private void stubChannelRead(final String newData) throws IOException {

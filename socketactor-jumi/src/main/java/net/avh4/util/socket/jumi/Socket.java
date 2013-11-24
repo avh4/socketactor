@@ -1,9 +1,13 @@
 package net.avh4.util.socket.jumi;
 
-public interface Socket {
-    void connect();
+import fi.jumi.actors.ActorRef;
 
-    void write(byte[] data);
+public interface Socket<L extends Disconnectable> {
+    void connect(ActorRef<L> initialReceiver);
+
+    void write(ActorRef<? extends Disconnectable> receiver, byte[] data);
 
     void next();
+
+    void next(ActorRef<L> newReceiver);
 }

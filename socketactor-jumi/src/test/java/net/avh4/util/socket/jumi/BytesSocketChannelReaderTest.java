@@ -18,17 +18,20 @@ import static org.mockito.Mockito.*;
 
 public class BytesSocketChannelReaderTest {
 
-    private SocketChannelReader subject;
+    private SocketChannelReader<BytesListener> subject;
     @Mock private SocketChannelActor master;
     @Mock private BytesListener listener;
     @Mock private SocketChannel channel;
     @Mock private IOException exception;
+    private ActorRef<BytesListener> listenerRef;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        listenerRef = ActorRef.wrap(listener);
         stubChannelRead("ABC");
-        subject = new BytesSocketChannelReader(master, ActorRef.wrap(listener), 256, channel);
+        subject = new BytesSocketChannelReader(master, 256, channel);
+        subject.setReceiver(listenerRef);
     }
 
     @Test
@@ -78,7 +81,7 @@ public class BytesSocketChannelReaderTest {
         stub(channel.read(any(ByteBuffer.class))).toReturn(-1);
         subject.selected();
 
-        verify(master).disconnect(anyString());
+        verify(master).disconnect(same(listenerRef), anyString());
     }
 
     @Test
@@ -87,13 +90,13 @@ public class BytesSocketChannelReaderTest {
         stub(channel.read(any(ByteBuffer.class))).toThrow(exception);
         subject.selected();
 
-        verify(master).disconnect(exception);
+        verify(master).disconnect(listenerRef, exception);
     }
 
     @Test
     public void closed_disconnects() throws Exception {
         subject.closed();
-        verify(master).disconnect(anyString());
+        verify(master).disconnect(same(listenerRef), anyString());
     }
 
     private void stubChannelRead(final String newData) throws IOException {

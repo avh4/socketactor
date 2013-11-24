@@ -26,7 +26,7 @@ public class Demo {
 //                new PrintStreamMessageLogger(System.out));
         ActorThread actorThread = actors.startActorThread();
 
-        ActorRef<LineListener> lineBufferListener = actorThread.bindActor(LineListener.class,
+        ActorRef<LineListener> listener = actorThread.bindActor(LineListener.class,
                 new LineListener() {
                     @Override public void receivedLine(String line) {
                         System.out.println("RECEIVED: " + line);
@@ -39,15 +39,15 @@ public class Demo {
                     }
                 });
         socket = actorThread.bindActor(Socket.class,
-                SocketChannelActor.linesSocketChannelActor(host, port, lineBufferListener));
+                SocketChannelActor.linesSocketChannelActor(host, port));
 
-        socket.tell().connect();
-        socket.tell().write("xx1\n".getBytes());
-        socket.tell().write("xx2\n".getBytes());
+        socket.tell().connect(listener);
+        socket.tell().write(listener, "xx1\n".getBytes());
+        socket.tell().write(listener, "xx2\n".getBytes());
         Thread.sleep(5000);
-        socket.tell().write("listall\n".getBytes());
+        socket.tell().write(listener, "listall\n".getBytes());
         Thread.sleep(72000);
-        socket.tell().write("xx4\n".getBytes());
+        socket.tell().write(listener, "xx4\n".getBytes());
         Thread.sleep(10000);
 
         actorThread.stop();
