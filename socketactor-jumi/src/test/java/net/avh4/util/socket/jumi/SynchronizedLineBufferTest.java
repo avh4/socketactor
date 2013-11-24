@@ -9,20 +9,35 @@ import org.mockito.MockitoAnnotations;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-public class LineBufferTest {
+public class SynchronizedLineBufferTest {
 
-    private LineBuffer subject;
+    private SynchronizedLineBuffer subject;
     @Mock private LineBuffer.Listener listener;
     @Mock private Throwable cause;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        subject = new LineBuffer(ActorRef.wrap(listener));
+        subject = new SynchronizedLineBuffer(ActorRef.wrap(listener));
     }
 
     @Test
-    public void receivingALineOfData_forwardsTheLine() throws Exception {
+    public void receivingALineOfData_waitsForNext() throws Exception {
+        subject.received("full line\n".getBytes());
+        verifyNoMoreInteractions(listener);
+    }
+
+    @Test
+    public void next_withDataReady_forwardsNextLine() throws Exception {
+        subject.received("full line\n".getBytes());
+        subject.next();
+        verify(listener).receivedLine("full line");
+        verifyNoMoreInteractions(listener);
+    }
+
+    @Test
+    public void receivingData_withPendingNext_forwardsNextLine() throws Exception {
+        subject.next();
         subject.received("full line\n".getBytes());
         verify(listener).receivedLine("full line");
         verifyNoMoreInteractions(listener);
@@ -36,9 +51,11 @@ public class LineBufferTest {
     }
 
     @Test
-    public void receivingMultipleLines_forwardsEachLine() throws Exception {
+    public void receivingMultipleLines_forwardsFirstLine() throws Exception {
+        subject.next();
         subject.received("line 1\nline 2\n".getBytes());
         verify(listener).receivedLine("line 1");
+        subject.next();
         verify(listener).receivedLine("line 2");
         verifyNoMoreInteractions(listener);
     }
@@ -46,12 +63,14 @@ public class LineBufferTest {
     @Test
     public void receivingPartialLine_waitsForMoreData() throws Exception {
         subject.received("partial ".getBytes());
+        subject.next();
         verifyNoMoreInteractions(listener);
     }
 
     @Test
     public void receivingCompletionOfLine_forwardsFullLine() throws Exception {
         subject.received("partial ".getBytes());
+        subject.next();
         subject.received("line\n".getBytes());
         verify(listener).receivedLine("partial line");
         verifyNoMoreInteractions(listener);

@@ -4,6 +4,11 @@ import fi.jumi.actors.ActorRef;
 
 import java.nio.charset.Charset;
 
+/**
+ * Implementation of `Socket.Listener` that will collect data in a buffer, and will send the next line from the buffer
+ * whenever a newline is encountered.  Note that since message order is not guaranteed, lines may arrive out of
+ * order.  If you need to guarantee order, use `SynchronizedLineBuffer`.
+ */
 public class LineBuffer implements Socket.Listener {
 
     public interface Listener {
