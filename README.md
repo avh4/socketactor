@@ -8,13 +8,11 @@ Provides `SocketChannelActor`, making it easy to create TCP clients/servers usin
 
 Add the following dependencies to your `pom.xml`:
 
-**NOTE**: socketactor is not yet published on Maven central, so you will first need to clone and `mvn install` this project.
-
 ```xml
   <dependency>
     <groupId>net.avh4.util.socket</groupId>
     <artifactId>socketactor-jumi</artifactId>
-    <version>0.0.0-SNAPSHOT</version>
+    <version>0.0.1</version>
   </dependency>
 ```
 
