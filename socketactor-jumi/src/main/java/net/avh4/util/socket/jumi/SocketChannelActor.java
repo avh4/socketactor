@@ -1,6 +1,7 @@
 package net.avh4.util.socket.jumi;
 
 import fi.jumi.actors.ActorRef;
+import net.avh4.util.socket.SelectorLoop;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -14,21 +15,34 @@ public class SocketChannelActor implements Socket {
     private final String host;
     private final int port;
     private final ActorRef<Socket.Listener> listener;
+    private final int readBufferSize;
     private volatile SocketChannel channel;
     private Thread readerThread;
+    private Selector selector;
 
-    public SocketChannelActor(String host, int port, ActorRef<Socket.Listener> listener) {
+    public SocketChannelActor(String host, int port, ActorRef<Listener> listener) {
+        this(host, port, listener, 256);
+    }
+
+    public SocketChannelActor(String host, int port, ActorRef<Listener> listener, int readBufferSize) {
         this.host = host;
         this.port = port;
         this.listener = listener;
+        this.readBufferSize = readBufferSize;
     }
 
     public synchronized void connect() {
         SocketAddress address = new InetSocketAddress(host, port);
         try {
+            selector = Selector.open();
+
             channel = SocketChannel.open(address);
             channel.configureBlocking(false);
-            readerThread = new Thread(new ReaderThread(channel));
+            channel.register(selector, SelectionKey.OP_READ);
+
+            SelectorLoop.Delegate reader =
+                    new SocketChannelReader(this, listener, readBufferSize, channel);
+            readerThread = SelectorLoop.newThread(selector, reader);
             readerThread.start();
         } catch (IOException e) {
             disconnect(e);
@@ -65,6 +79,7 @@ public class SocketChannelActor implements Socket {
         listener.tell().disconnected(cause);
         stopReaderThread();
         dropChannel();
+        closeSelector();
     }
 
     private void stopReaderThread() {
@@ -81,35 +96,12 @@ public class SocketChannelActor implements Socket {
         channel = null;
     }
 
-    private class ReaderThread implements Runnable {
-        private final SocketChannel channel;
-
-        private ReaderThread(SocketChannel channel) {
-            this.channel = channel;
+    private void closeSelector() {
+        if (selector == null) return;
+        try {
+            selector.close();
+        } catch (IOException ignored) {
         }
-
-        @Override public void run() {
-            try {
-                ByteBuffer buffer = ByteBuffer.allocate(256);
-                Selector sel = Selector.open();
-                channel.register(sel, SelectionKey.OP_READ);
-                while (!Thread.interrupted()) {
-                    buffer.clear();
-                    sel.select();
-                    final int bytesRead = channel.read(buffer);
-                    if (bytesRead == -1) {
-                        disconnect("Socket was disconnected");
-                        return;
-                    }
-                    buffer.flip();
-                    byte[] data = new byte[buffer.remaining()];
-                    buffer.get(data);
-                    listener.tell().received(data);
-                }
-                disconnect("Reader Thread exited");
-            } catch (Exception e) {
-                disconnect(e);
-            }
-        }
+        selector = null;
     }
 }

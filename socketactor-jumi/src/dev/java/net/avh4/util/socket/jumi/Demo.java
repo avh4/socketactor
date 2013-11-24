@@ -35,7 +35,8 @@ public class Demo {
             }
         });
 
-        ActorRef<Socket> socket = actorThread.bindActor(Socket.class, new SocketChannelActor("192.168.2.33", 6600, listener));
+        ActorRef<Socket> socket = actorThread.bindActor(Socket.class,
+                new SocketChannelActor("192.168.2.33", 6600, listener));
 
         socket.tell().connect();
         socket.tell().write("xx1\n".getBytes());
