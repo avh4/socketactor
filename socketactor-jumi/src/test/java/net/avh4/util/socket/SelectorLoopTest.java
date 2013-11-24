@@ -6,6 +6,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.nio.channels.Selector;
+import java.util.concurrent.Semaphore;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -16,6 +17,7 @@ public class SelectorLoopTest {
     private SelectorLoop subject;
     @Mock private SelectorLoop.Delegate delegate;
     @Mock private Selector selector;
+    @Mock private Semaphore semaphore;
 
     @Before
     public void setUp() throws Exception {

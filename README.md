@@ -29,25 +29,28 @@ To create a TCP client, you will first need to initialize `jumi-actors`:
     ActorThread actorThread = actors.startActorThread();
 ```
 
-Now you can create your `received` and `disconnected` callbacks:
+Now you can create your `received` and `disconnected` callbacks: (If your TCP protocol is not line-based, use `BytesListener` instead of `LinesListener`.)
 
 ```java
-    ActorRef<Socket.Listener> listener = actorThread.bindActor(Socket.Listener.class, new Socket.Listener() {
-        @Override public void received(byte[] data) {
-            String s = new String(data, UTF8);
-            System.out.println("RECEIVED: " + s);
+    ActorRef<Socket> socket;
+    ActorRef<LineListener> listener = actorThread.bindActor(LineListener.class,
+      new LineListener() {
+        @Override public void receivedLine(String line) {
+          System.out.println("RECEIVED: " + line);
+          socket.tell().next();
         }
 
         @Override public void disconnected(Throwable cause) {
-            System.out.println("DISCONNECTED: " + cause.getLocalizedMessage());
+          System.out.println("DISCONNECTED: " + cause.getLocalizedMessage());
         }
-    });
+      });
 ```
 
-Now connect your client to a server:
+Now connect your client to a server: (If your TCP protocol is not line-based, use `SocketChannelActor.bytesSocketChannelActor` instead of `linesSocketChannelActor`.)
 
 ```java
-    ActorRef<Socket> socket = actorThread.bindActor(Socket.class, new SocketChannelActor("192.168.2.33", 6600, listener));
+    socket = actorThread.bindActor(Socket.class,
+      SocketChannelActor.linesSocketChannelActor(host, port, listener));
 
     socket.tell().connect();
     socket.tell().write("currentsong\n".getBytes());

@@ -49,6 +49,7 @@ public class SelectorLoop implements Loop {
     }
 
     @Override public void exception(Exception e) {
+        throw new RuntimeException("Exception throw in SelectorLoop", e);
     }
 
     @Override public void cleanup() {

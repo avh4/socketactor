@@ -5,9 +5,5 @@ public interface Socket {
 
     void write(byte[] data);
 
-    interface Listener {
-        void received(byte[] data);
-
-        void disconnected(Throwable cause);
-    }
+    void next();
 }
