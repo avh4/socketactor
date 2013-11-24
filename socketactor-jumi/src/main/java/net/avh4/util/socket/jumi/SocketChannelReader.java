@@ -13,6 +13,7 @@ abstract class SocketChannelReader<L extends Disconnectable> implements Selector
     protected final ByteBuffer buffer;
     protected ActorRef<L> receiver;
     protected int requestCount = 0;
+    private IOException queuedDisconnect;
 
     SocketChannelReader(SocketChannelActor socketChannelActor, int readBufferSize, SocketChannel channel) {
         this.channel = channel;
@@ -26,20 +27,33 @@ abstract class SocketChannelReader<L extends Disconnectable> implements Selector
             try {
                 bytesRead = channel.read(buffer);
             } catch (IOException e) {
-                socketChannelActor.disconnect(receiver, e);
+                queueDisconnect(e);
+                fulfillRequests();
                 return;
             }
         }
 
         if (bytesRead == -1) {
-            socketChannelActor.disconnect(receiver, "Socket was disconnected");
+            queueDisconnect("Socket was disconnected");
         }
 
         fulfillRequests();
     }
 
     @Override public void closed() {
-        socketChannelActor.disconnect(receiver, "Selector was closed");
+        queueDisconnect("Selector was closed");
+        fulfillRequests();
+    }
+
+    private synchronized  void queueDisconnect(String cause) {
+        queueDisconnect(new IOException(cause));
+    }
+
+    private synchronized void queueDisconnect(IOException e) {
+        if (queuedDisconnect != null) {
+            throw new RuntimeException("Not implemented: disconnect was already queued--is this okay?");
+        }
+        queuedDisconnect = e;
     }
 
     public synchronized void next() {
@@ -56,8 +70,16 @@ abstract class SocketChannelReader<L extends Disconnectable> implements Selector
     private synchronized void fulfillRequests() {
         drainImplementationBuffer();
         synchronized (buffer) {
-            if (requestCount > 0 && buffer.position() > 0) {
-                sendData();
+            if (requestCount > 0) {
+                if (queuedDisconnect != null) {
+                    socketChannelActor.disconnect(receiver, queuedDisconnect);
+                    queuedDisconnect = null;
+                    requestCount--;
+                    return;
+                }
+                if (buffer.position() > 0) {
+                    sendData();
+                }
             }
         }
     }
