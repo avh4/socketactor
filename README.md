@@ -50,8 +50,8 @@ Now connect your client to a server: (If your TCP protocol is not line-based, us
     socket = actorThread.bindActor(Socket.class,
       SocketChannelActor.linesSocketChannelActor(host, port, listener));
 
-    socket.tell().connect();
-    socket.tell().write("currentsong\n".getBytes());
+    socket.tell().connect(listener);
+    socket.tell().write(listener, "currentsong\n".getBytes());
 ```
 
 ## Build commands
